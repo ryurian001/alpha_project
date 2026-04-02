@@ -58,102 +58,102 @@ class CsScraper:
     
     
     def fetch_content(self, url, category):
-            """상세 페이지에서 텍스트, 본문 내 링크, 이미지 주소 추출"""
-            try:
-                res = requests.get(url, headers=self.headers)
-                soup = BeautifulSoup(res.text, 'html.parser')
-                
-                # 1. 제목 & 날짜
-                title_element = soup.select_one('td.view-title')
-                title = title_element.text.strip() if title_element else "제목 없음"
-                
-                date_element = soup.select_one('th.aricle-subject + td')
-                date = date_element.text.strip() if date_element else "날짜 없음"
-                
-                # 2. 본문 상자 찾기
-                content_element = soup.select_one('div#view-detail-data') 
-                
-                content_text = "본문 없음"
-                content_links = []  # 본문 속 하이퍼링크들을 담을 빈 보따리
-                content_images = [] # 본문 속 이미지 주소들을 담을 빈 보따리
+        """상세 페이지에서 텍스트, 본문 내 링크, 이미지 주소 추출"""
+        try:
+            res = requests.get(url, headers=self.headers)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            
+            # 1. 제목 & 날짜
+            title_element = soup.select_one('td.view-title')
+            title = title_element.text.strip() if title_element else "제목 없음"
+            
+            date_element = soup.select_one('th.aricle-subject + td')
+            date = date_element.text.strip() if date_element else "날짜 없음"
+            
+            # 2. 본문 상자 찾기
+            content_element = soup.select_one('div#view-detail-data') 
+            
+            content_text = "본문 없음"
+            content_links = []  # 본문 속 하이퍼링크들을 담을 빈 보따리
+            content_images = [] # 본문 속 이미지 주소들을 담을 빈 보따리
 
-                if content_element:
-                    # 1. 태그 처리 (줄바꿈 보존)
-                    for br in content_element.find_all('br'):
-                        br.replace_with('\n')
-                    for block in content_element.find_all(['p', 'div', 'tr', 'li']):
-                        block.append('\n')
-                    
-                    # 2. 텍스트 추출
-                    text = content_element.get_text()
-                    
-                    # (1) 특수 공백(&nbsp; -> \xa0)을 일반 공백으로 강제 변환
-                    text = text.replace('\xa0', ' ')
-                    
-                    # (2) 줄 단위로 쪼개기
-                    lines = text.splitlines()
-                    
-                    # (3) 각 줄의 앞뒤 '모든' 공백 제거 (열 몇 개씩 있는 공백을 여기서 다 깎아냅니다)
-                    # 그리고 빈 줄이 아닌 것들만 골라냅니다.
-                    cleaned_lines = []
-                    for line in lines:
-                        stripped_line = line.strip()
-                        if stripped_line:
-                            # 문장 중간에 스페이스가 2개 이상 있으면 1개로 압축
-                            stripped_line = re.sub(r' +', ' ', stripped_line)
-                            cleaned_lines.append(stripped_line)
-                        elif cleaned_lines and cleaned_lines[-1] != "":
-                            # 이미 빈 줄이 하나 추가된 상태가 아니라면, 문단 구분을 위해 빈 줄 하나만 허용
-                            cleaned_lines.append("")
+            if content_element:
+                # 1. 태그 처리 (줄바꿈 보존)
+                for br in content_element.find_all('br'):
+                    br.replace_with('\n')
+                for block in content_element.find_all(['p', 'div', 'tr', 'li']):
+                    block.append('\n')
+                
+                # 2. 텍스트 추출
+                text = content_element.get_text()
+                
+                # (1) 특수 공백(&nbsp; -> \xa0)을 일반 공백으로 강제 변환
+                text = text.replace('\xa0', ' ')
+                
+                # (2) 줄 단위로 쪼개기
+                lines = text.splitlines()
+                
+                # (3) 각 줄의 앞뒤 '모든' 공백 제거 (열 몇 개씩 있는 공백을 여기서 다 깎아냅니다)
+                # 그리고 빈 줄이 아닌 것들만 골라냅니다.
+                cleaned_lines = []
+                for line in lines:
+                    stripped_line = line.strip()
+                    if stripped_line:
+                        # 문장 중간에 스페이스가 2개 이상 있으면 1개로 압축
+                        stripped_line = re.sub(r' +', ' ', stripped_line)
+                        cleaned_lines.append(stripped_line)
+                    elif cleaned_lines and cleaned_lines[-1] != "":
+                        # 이미 빈 줄이 하나 추가된 상태가 아니라면, 문단 구분을 위해 빈 줄 하나만 허용
+                        cleaned_lines.append("")
 
-                    # (4) 다시 합치기
-                    cleaned_text = '\n'.join(cleaned_lines)
-                    
-                    # (5) 마지막으로 줄바꿈이 4개 이상 반복되면 2개로 압축 (최종 수동 체크)
-                    cleaned_text = re.sub(r'\n{4,}', '\n\n', cleaned_text)
+                # (4) 다시 합치기
+                cleaned_text = '\n'.join(cleaned_lines)
+                
+                # (5) 마지막으로 줄바꿈이 4개 이상 반복되면 2개로 압축 (최종 수동 체크)
+                cleaned_text = re.sub(r'\n{4,}', '\n\n', cleaned_text)
 
-                    # 2-1. 순수 텍스트 추출
-                    content_text = cleaned_text.strip()
-                    
-                    # 2-2. 본문 속 <a> 태그(링크) 모두 찾기
-                    for a_tag in content_element.find_all('a'):
-                        if a_tag.has_attr('href'):
-                            href = a_tag['href']
-                            # 불필요한 자바스크립트 실행 링크 등은 제외하고 저장
-                            if not href.startswith('javascript:'):
-                                content_links.append(href)
-                                
-                    # 2-3. 본문 속 <img> 태그(이미지) 모두 찾기
-                    for img_tag in content_element.find_all('img'):
-                        if img_tag.has_attr('src'):
-                            src = img_tag['src']
-                            # 이미지 주소가 //로 시작하면 https: 를 붙여줌 (예: //wfile... -> https://wfile...)
-                            if src.startswith('//'):
-                                src = "https:" + src
-                            content_images.append(src)
-
-                # 3. 첨부파일 찾기
-                attachments = []
-                # 클래스가 attach-file인 td 태그 안의 모든 a 태그(링크)를 찾습니다.
-                for a_tag in soup.select('td.attach-file a'):
+                # 2-1. 순수 텍스트 추출
+                content_text = cleaned_text.strip()
+                
+                # 2-2. 본문 속 <a> 태그(링크) 모두 찾기
+                for a_tag in content_element.find_all('a'):
                     if a_tag.has_attr('href'):
                         href = a_tag['href']
-                        attachments.append(href)
+                        # 불필요한 자바스크립트 실행 링크 등은 제외하고 저장
+                        if not href.startswith('javascript:'):
+                            content_links.append(href)
+                            
+                # 2-3. 본문 속 <img> 태그(이미지) 모두 찾기
+                for img_tag in content_element.find_all('img'):
+                    if img_tag.has_attr('src'):
+                        src = img_tag['src']
+                        # 이미지 주소가 //로 시작하면 https: 를 붙여줌 (예: //wfile... -> https://wfile...)
+                        if src.startswith('//'):
+                            src = "https:" + src
+                        content_images.append(src)
 
-                return {
-                    "title": title, 
-                    "date": date, 
-                    "content": content_text,
-                    "attachments": list(set(attachments)),
-                    "attached_links": list(set(content_links)),   # 리스트 형태로 저장됨
-                    "attached_images": list(set(content_images)), # 리스트 형태로 저장됨
-                    "url": url, 
-                    "category": category
-                }
-                
-            except Exception as e:
-                print(f"내용 추출 에러: {e}")
-                return None
+            # 3. 첨부파일 찾기
+            attachments = []
+            # 클래스가 attach-file인 td 태그 안의 모든 a 태그(링크)를 찾습니다.
+            for a_tag in soup.select('td.attach-file a'):
+                if a_tag.has_attr('href'):
+                    href = a_tag['href']
+                    attachments.append(href)
+
+            return {
+                "title": title, 
+                "date": date, 
+                "content": content_text,
+                "attachments": list(set(attachments)),
+                "attached_links": list(set(content_links)),   # 리스트 형태로 저장됨
+                "attached_images": list(set(content_images)), # 리스트 형태로 저장됨
+                "url": url, 
+                "category": category
+            }
+            
+        except Exception as e:
+            print(f"내용 추출 에러: {e}")
+            return None
         
 if __name__ == "__main__":
     # 1. 크롤러 준비

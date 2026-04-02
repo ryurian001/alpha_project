@@ -11,35 +11,53 @@ class SwScraper:
         self.headers = {"User-Agent": "Mozilla/5.0"}
         self.base_domain = "https://software.kookmin.ac.kr"
 
-    def fetch_links(self, board_url):
+    def fetch_links(self, board_url, category):
         """목록 페이지에서 페이지를 넘겨가며 상세 링크를 수집합니다."""
         all_links = []
         
         for page in range(1, MAX_PAGES + 1):
             offset = (page - 1) * 10
-            page_url = f"{board_url}?mode=list&articleLimit=10&article.offset={offset}"
+            page_url = f"{board_url}&article.offset={offset}"
             print(f"👉 [SW중심대학 {page}/{MAX_PAGES}] 페이지 탐색 중... ({page_url})")
             
             try:
                 res = requests.get(page_url, headers=self.headers)
                 soup = BeautifulSoup(res.text, 'html.parser')
                 
-                page_links = []
-                for a in soup.select('div.b-title-box a'):
-                    if a.has_attr('href'):
-                        href = a['href']
-                        if href.startswith('?'):
-                            base_path = board_url.split('?')[0]
-                            full_url = base_path + href
-                        elif href.startswith('/'):
-                            full_url = self.base_domain + href
-                        else:
-                            full_url = href
-                        page_links.append(full_url.split('&article.offset')[0])
+                # 1. 게시판 테이블의 모든 행(tr)을 가져옵니다.
+                rows = soup.select('table.board-table tbody tr')
                 
-                if len(page_links) == 0:
-                    print(f"   🚨 더 이상 게시글이 없습니다. {page}페이지에서 수집을 종료합니다.")
-                    break
+                page_links = []
+                for tr in rows:
+                    tds = tr.find_all('td')
+                    # 분류 정보는 보통 두 번째 td(인덱스 1)에 위치합니다.
+                    if len(tds) > 1:
+                        row_category = tds[1].get_text(strip=True)
+                        
+                        # 2. 파라미터로 받은 category와 행의 분류가 일치하는지 확인합니다.
+                        if row_category == category:
+                            # 3. 일치할 경우에만 해당 행 안에서 링크(a 태그)를 찾습니다.
+                            a = tr.select_one('div.b-title-box a')
+                            if a and a.has_attr('href'):
+                                href = a['href']
+                                
+                                # URL 정제 및 결합 로직
+                                if href.startswith('?'):
+                                    base_path = board_url.split('?')[0]
+                                    full_url = base_path + href
+                                elif href.startswith('/'):
+                                    full_url = self.base_domain + href
+                                else:
+                                    full_url = href
+                                
+                                # &article.offset 이후 파라미터 제거
+                                clean_url = full_url.split('&article.offset')[0]
+                                page_links.append(clean_url)
+                
+                if len(page_links) == 0 and page > 1:
+                    # 해당 페이지에 조건에 맞는 글이 하나도 없으면 종료 로직 (선택 사항)
+                    # 실제로는 다음 페이지에 있을 수 있으므로 break 대신 계속 진행할 수도 있습니다.
+                    pass
                     
                 all_links.extend(page_links)
                 time.sleep(1) 
@@ -49,7 +67,7 @@ class SwScraper:
                 break
                 
         final_links = list(set(all_links))
-        print(f"✅ SW중심대학 게시판에서 총 {len(final_links)}개의 링크를 찾았습니다!\n")
+        print(f"✅ {category} 카테고리에서 총 {len(final_links)}개의 링크를 찾았습니다!\n")
         return final_links
 
     def fetch_content(self, url, category):
@@ -144,10 +162,11 @@ if __name__ == "__main__":
     # 1. 크롤러 준비 (SW중심대학 크롤러 기준)
     sc = SwScraper()
     test_board_url = "https://software.kookmin.ac.kr/software/bulletin/notice.do"
+    test_board_url = "https://software.kookmin.ac.kr/software/bulletin/notice.do?mode=list&srCategoryId=350"
     
     print("🚀 [테스트 1단계] 게시판 링크 수집을 시작합니다...")
     # 테스트용이므로 1페이지(max_pages=1)만 빠르게 가져옵니다.
-    temp_links = sc.fetch_links(test_board_url)
+    temp_links = sc.fetch_links(test_board_url, "프로그램 및 행사")
     
     # 2. 결과 확인 및 상세 페이지 테스트
     if temp_links:
