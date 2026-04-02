@@ -78,30 +78,42 @@ class CsScraper:
                 content_images = [] # 본문 속 이미지 주소들을 담을 빈 보따리
 
                 if content_element:
-                    # 1. 태그 처리 (이전 단계에서 했던 개행 처리 포함)
+                    # 1. 태그 처리 (줄바꿈 보존)
                     for br in content_element.find_all('br'):
                         br.replace_with('\n')
-                    for block in content_element.find_all(['p', 'div', 'li']):
+                    for block in content_element.find_all(['p', 'div', 'tr', 'li']):
                         block.append('\n')
                     
-                    # 2. 일단 텍스트를 가져옵니다.
-                    raw_text = content_element.get_text()
+                    # 2. 텍스트 추출
+                    text = content_element.get_text()
                     
-                    # 3. 🎯 [텍스트 정제 핵심]
-                    # (1) 각 줄의 맨 앞과 맨 뒤에 있는 쓸데없는 스페이스/탭 제거
-                    lines = [line.strip() for line in raw_text.splitlines()]
+                    # (1) 특수 공백(&nbsp; -> \xa0)을 일반 공백으로 강제 변환
+                    text = text.replace('\xa0', ' ')
                     
-                    # (2) 정제된 줄들을 다시 합칩니다.
-                    cleaned_text = '\n'.join(lines)
+                    # (2) 줄 단위로 쪼개기
+                    lines = text.splitlines()
                     
-                    # (3) 줄바꿈이 3개 이상 연속되면 2개로 줄입니다 (너무 넓은 간격 방지)
-                    cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+                    # (3) 각 줄의 앞뒤 '모든' 공백 제거 (열 몇 개씩 있는 공백을 여기서 다 깎아냅니다)
+                    # 그리고 빈 줄이 아닌 것들만 골라냅니다.
+                    cleaned_lines = []
+                    for line in lines:
+                        stripped_line = line.strip()
+                        if stripped_line:
+                            # 문장 중간에 스페이스가 2개 이상 있으면 1개로 압축
+                            stripped_line = re.sub(r' +', ' ', stripped_line)
+                            cleaned_lines.append(stripped_line)
+                        elif cleaned_lines and cleaned_lines[-1] != "":
+                            # 이미 빈 줄이 하나 추가된 상태가 아니라면, 문단 구분을 위해 빈 줄 하나만 허용
+                            cleaned_lines.append("")
+
+                    # (4) 다시 합치기
+                    cleaned_text = '\n'.join(cleaned_lines)
                     
-                    # (4) 문장 중간에 스페이스가 2개 이상 연속되면 1개로 줄입니다.
-                    cleaned_text = re.sub(r' +', ' ', cleaned_text)
+                    # (5) 마지막으로 줄바꿈이 4개 이상 반복되면 2개로 압축 (최종 수동 체크)
+                    cleaned_text = re.sub(r'\n{4,}', '\n\n', cleaned_text)
 
                     # 2-1. 순수 텍스트 추출
-                    content_text = content_element.text.strip()
+                    content_text = cleaned_text.strip()
                     
                     # 2-2. 본문 속 <a> 태그(링크) 모두 찾기
                     for a_tag in content_element.find_all('a'):
