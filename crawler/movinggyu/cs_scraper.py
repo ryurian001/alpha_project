@@ -78,42 +78,31 @@ class CsScraper:
             content_images = [] # 본문 속 이미지 주소들을 담을 빈 보따리
 
             if content_element:
-                # 1. 태그 처리 (줄바꿈 보존)
-                for br in content_element.find_all('br'):
-                    br.replace_with('\n')
-                for block in content_element.find_all(['p', 'div', 'tr', 'li']):
-                    block.append('\n')
+                # (1) 줄바꿈 역할을 하는 태그 뒤에만 \n 추가
+                for block in content_element.find_all(['p', 'div', 'tr', 'li', 'br']):
+                    if block.name == 'br':
+                        block.replace_with('\n')
+                    else:
+                        block.append('\n')
                 
-                # 2. 텍스트 추출
-                text = content_element.get_text()
+                # (2) 텍스트 추출 (separator=""로 글자 조각남 방지)
+                raw_text = content_element.get_text(separator="")
                 
-                # (1) 특수 공백(&nbsp; -> \xa0)을 일반 공백으로 강제 변환
-                text = text.replace('\xa0', ' ')
+                # (3) 특수 공백(\xa0) 제거 및 각 줄 앞뒤 공백 깎기
+                text = raw_text.replace('\xa0', ' ')
+                lines = [line.strip() for line in text.splitlines()]
                 
-                # (2) 줄 단위로 쪼개기
-                lines = text.splitlines()
-                
-                # (3) 각 줄의 앞뒤 '모든' 공백 제거 (열 몇 개씩 있는 공백을 여기서 다 깎아냅니다)
-                # 그리고 빈 줄이 아닌 것들만 골라냅니다.
-                cleaned_lines = []
-                for line in lines:
-                    stripped_line = line.strip()
-                    if stripped_line:
-                        # 문장 중간에 스페이스가 2개 이상 있으면 1개로 압축
-                        stripped_line = re.sub(r' +', ' ', stripped_line)
-                        cleaned_lines.append(stripped_line)
-                    elif cleaned_lines and cleaned_lines[-1] != "":
-                        # 이미 빈 줄이 하나 추가된 상태가 아니라면, 문단 구분을 위해 빈 줄 하나만 허용
-                        cleaned_lines.append("")
+                # (4) 문장 중간 중복 스페이스 압축
+                processed_lines = [re.sub(r' +', ' ', line) for line in lines]
+                intermediate_text = '\n'.join(processed_lines)
 
-                # (4) 다시 합치기
-                cleaned_text = '\n'.join(cleaned_lines)
-                
-                # (5) 마지막으로 줄바꿈이 4개 이상 반복되면 2개로 압축 (최종 수동 체크)
-                cleaned_text = re.sub(r'\n{4,}', '\n\n', cleaned_text)
-
-                # 2-1. 순수 텍스트 추출
-                content_text = cleaned_text.strip()
+                # (5) 🎯 요청하신 개행 정제 규칙 (핵심)
+                # 4개 이상 연속 개행 -> 임시 마커로 변환 (나중에 \n\n이 됨)
+                cleaned_text = re.sub(r'\n{4,}', '___DBL_NL___', intermediate_text)
+                # 2~3개 연속 개행 -> 1개(\n)로 압축 (문단 붙이기)
+                cleaned_text = re.sub(r'\n{2,3}', '\n', cleaned_text)
+                # 마커를 다시 \n\n으로 복구
+                content_text = cleaned_text.replace('___DBL_NL___', '\n\n').strip()
                 
                 # 2-2. 본문 속 <a> 태그(링크) 모두 찾기
                 for a_tag in content_element.find_all('a'):
