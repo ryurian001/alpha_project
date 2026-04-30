@@ -16,6 +16,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +33,7 @@ ZERO_WIDTH_RE = re.compile(r"[\u200b\u200c\u200d\ufeff]")
 SPACE_RE = re.compile(r"[ \t\r\f\v]+")
 NEWLINE_RE = re.compile(r"\n{3,}")
 URL_RE = re.compile(r"https?://\S+")
+SKIPPED_RESOURCE_PREFIXES = ("javascript:", "mailto:", "tel:", "data:", "#")
 
 
 def parse_args() -> argparse.Namespace:
@@ -119,14 +121,33 @@ def clean_text(value: Any) -> str:
     return cleaned.strip()
 
 
-def normalize_list(value: Any) -> list[str]:
+def clean_resource_text(value: Any) -> str:
+    text = "" if value is None else str(value)
+    text = text.replace("\xa0", " ")
+    text = ZERO_WIDTH_RE.sub("", text)
+    text = SPACE_RE.sub(" ", text).strip()
+    return text
+
+
+def normalize_resource_url(value: Any, base_url: str) -> str:
+    text = clean_resource_text(value)
+    if not text:
+        return ""
+    if text.lower().startswith(SKIPPED_RESOURCE_PREFIXES):
+        return ""
+    if text.startswith("//"):
+        return "https:" + text
+    return urljoin(base_url, text)
+
+
+def normalize_resource_list(value: Any, base_url: str) -> list[str]:
     if not isinstance(value, list):
         return []
 
     normalized = []
     seen = set()
     for item in value:
-        text = clean_text(item)
+        text = normalize_resource_url(item, base_url)
         if text and text not in seen:
             normalized.append(text)
             seen.add(text)
@@ -141,7 +162,7 @@ def stable_id(*parts: str) -> str:
 def clean_notice(item: dict[str, Any]) -> dict[str, Any] | None:
     title = clean_text(item.get("title"))
     content = clean_text(item.get("content"))
-    url = clean_text(item.get("url"))
+    url = clean_resource_text(item.get("url"))
 
     if not title and not content:
         return None
@@ -155,13 +176,29 @@ def clean_notice(item: dict[str, Any]) -> dict[str, Any] | None:
         "date": clean_text(item.get("date")),
         "url": url,
         "content": content,
-        "attachments": normalize_list(item.get("attachments")),
-        "attached_links": normalize_list(item.get("attached_links")),
-        "attached_images": normalize_list(item.get("attached_images")),
+        "attachments": normalize_resource_list(item.get("attachments"), url),
+        "attached_links": normalize_resource_list(item.get("attached_links"), url),
+        "attached_images": normalize_resource_list(item.get("attached_images"), url),
     }
 
 
+def build_resource_text(notice: dict[str, Any]) -> str:
+    resource_groups = [
+        ("첨부파일", notice["attachments"]),
+        ("하이퍼링크", notice["attached_links"]),
+        ("이미지", notice["attached_images"]),
+    ]
+    parts = []
+    for label, values in resource_groups:
+        if not values:
+            continue
+        parts.append(f"{label}:")
+        parts.extend(f"- {value}" for value in values)
+    return "\n".join(parts)
+
+
 def build_document_text(notice: dict[str, Any]) -> str:
+    resource_text = build_resource_text(notice)
     parts = [
         f"제목: {notice['title']}",
         f"출처: {notice['source']}" if notice["source"] else "",
@@ -169,6 +206,8 @@ def build_document_text(notice: dict[str, Any]) -> str:
         f"날짜: {notice['date']}" if notice["date"] else "",
         "",
         notice["content"],
+        "",
+        resource_text,
     ]
     return "\n".join(part for part in parts if part).strip()
 
@@ -242,6 +281,9 @@ def make_chunks(
                         "title": notice["title"],
                         "date": notice["date"],
                         "url": notice["url"],
+                        "attachments": notice["attachments"],
+                        "attached_links": notice["attached_links"],
+                        "attached_images": notice["attached_images"],
                     },
                 }
             )
