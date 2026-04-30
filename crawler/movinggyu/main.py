@@ -1,10 +1,16 @@
 # main.py
 import json
 import os
+import sys
 import time
 from cs_scraper import CsScraper
 from sw_scraper import SwScraper
 from config import TARGET_BOARDS_CS, TARGET_BOARDS_SW
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 def load_existing_data(filename):
     """기존에 수집된 JSON 데이터를 읽어옵니다."""
