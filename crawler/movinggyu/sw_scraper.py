@@ -2,7 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
-from config import MAX_PAGES
+from config import MAX_PAGES, MIN_YEAR
+from date_utils import extract_year, find_date_text
 
 class SwScraper:
     """SW중심대학(software.kookmin.ac.kr) 전용 크롤러"""
@@ -16,6 +17,7 @@ class SwScraper:
         all_links = []
         
         for page in range(1, MAX_PAGES + 1):
+            stop_by_year = False
             offset = (page - 1) * 10
             page_url = f"{board_url}&article.offset={offset}"
             print(f"👉 [SW중심대학 {page}/{MAX_PAGES}] 페이지 탐색 중... ({page_url})")
@@ -36,6 +38,13 @@ class SwScraper:
                         
                         # 2. 파라미터로 받은 category와 행의 분류가 일치하는지 확인합니다.
                         if row_category == category:
+                            date_text = find_date_text(tr)
+                            year = extract_year(date_text)
+                            if year and year < MIN_YEAR:
+                                print(f"   🛑 {date_text} 게시글이 발견되어 {MIN_YEAR}년 이전 탐색을 종료합니다.")
+                                stop_by_year = True
+                                break
+
                             # 3. 일치할 경우에만 해당 행 안에서 링크(a 태그)를 찾습니다.
                             a = tr.select_one('div.b-title-box a')
                             if a and a.has_attr('href'):
@@ -53,6 +62,9 @@ class SwScraper:
                                 # &article.offset 이후 파라미터 제거
                                 clean_url = full_url.split('&article.offset')[0]
                                 page_links.append(clean_url)
+
+                    if stop_by_year:
+                        break
                 
                 if len(page_links) == 0 and page > 1:
                     # 해당 페이지에 조건에 맞는 글이 하나도 없으면 종료 로직 (선택 사항)
@@ -60,13 +72,17 @@ class SwScraper:
                     pass
                     
                 all_links.extend(page_links)
+
+                if stop_by_year:
+                    break
+
                 time.sleep(1) 
                 
             except Exception as e:
                 print(f"   ❌ {page}페이지 접속 중 에러 발생: {e}")
                 break
                 
-        final_links = list(set(all_links))
+        final_links = list(dict.fromkeys(all_links))
         print(f"✅ {category} 카테고리에서 총 {len(final_links)}개의 링크를 찾았습니다!\n")
         return final_links
 

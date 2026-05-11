@@ -3,17 +3,45 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
-from config import MAX_PAGES
+from urllib.parse import urljoin
+from config import MAX_PAGES, MIN_YEAR
+from date_utils import extract_year, find_date_text
 
 class CsScraper:
+    DATE_SELECTORS = [
+        'li.date',
+        'li.regdate',
+        'li.write',
+        'li.created',
+        'td.date',
+        'span.date',
+    ]
+
     def __init__(self):
         self.headers = {"User-Agent": "Mozilla/5.0"}
+
+    def _parse_list_item(self, a_tag, board_url):
+        """목록의 링크 태그에서 상세 URL과 작성일 연도를 함께 추출합니다."""
+        href = a_tag.get('href')
+        if not href:
+            return None
+
+        list_item = a_tag.find_parent('ul') or a_tag.find_parent('tr') or a_tag.find_parent('li') or a_tag.parent
+        date_text = find_date_text(list_item, self.DATE_SELECTORS) if list_item else ""
+        full_url = urljoin(board_url, href).split('?pn')[0]
+
+        return {
+            "url": full_url,
+            "date_text": date_text,
+            "year": extract_year(date_text),
+        }
 
     def fetch_links(self, board_url):
         all_links = []
         
         # 1페이지부터 MAX_PAGES(예: 200)까지 반복
         for page in range(0, MAX_PAGES):
+            stop_by_year = False
             # URL 끝에 '?pn=페이지번호'를 붙여서 새로운 주소 생성
             # (예: https://cs.kookmin.ac.kr/news/jobs/?pn=2)
             page_url = f"{board_url}?&pn={page}"
@@ -26,23 +54,27 @@ class CsScraper:
                 # 아까 찾은 알맞은 선택자('li.subject a') 사용
                 page_links = []
                 for a in soup.select('li.subject a'):
-                    if a.has_attr('href'):
-                        href = a['href']
-                        if href.startswith('./'):
-                            full_url = board_url + href[1:]
-                        elif href.startswith('/'):
-                            full_url = board_url + href
-                        else:
-                            full_url = href
-                        page_links.append(full_url.split('?pn')[0])
+                    item = self._parse_list_item(a, board_url)
+                    if not item:
+                        continue
+
+                    if item["year"] and item["year"] < MIN_YEAR:
+                        print(f"   🛑 {item['date_text']} 게시글이 발견되어 {MIN_YEAR}년 이전 탐색을 종료합니다.")
+                        stop_by_year = True
+                        break
+
+                    page_links.append(item["url"])
                 
                 # 💡 핵심 방어 로직: 만약 이 페이지에 긁어올 링크가 0개라면?
                 # -> 더 이상 글이 없다는 뜻이므로 200페이지까지 안 가고 반복문을 마칩니다(break).
-                if len(page_links) == 0:
+                if len(page_links) == 0 and not stop_by_year:
                     print(f"   🚨 더 이상 게시글이 없습니다. {page}페이지에서 수집을 종료합니다.")
                     break
                     
                 all_links.extend(page_links) # 긁어온 링크를 큰 보따리에 합치기
+
+                if stop_by_year:
+                    break
                 
                 # 서버에 공격(DDoS)으로 오해받지 않기 위해 1초 대기 (매우 중요!)
                 time.sleep(1)
@@ -51,8 +83,8 @@ class CsScraper:
                 print(f"   ❌ {page}페이지 접속 중 에러 발생: {e}")
                 break # 에러가 나면 다음 게시판으로 넘어가도록 멈춤
                 
-        # 중복 제거 후 반환
-        final_links = list(set(all_links))
+        # 중복 제거 후 반환 (목록 순서 유지)
+        final_links = list(dict.fromkeys(all_links))
         print(f"✅ 이 게시판에서 총 {len(final_links)}개의 링크를 찾았습니다!\n")
         return final_links
     

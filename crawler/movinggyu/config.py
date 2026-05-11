@@ -1,6 +1,7 @@
 # config.py
 # 크롤링 관련 설정
-MAX_PAGES = 5
+MAX_PAGES = 200
+MIN_YEAR = 2024
 
 TARGET_BOARDS_CS = [
     {"category": "학사공지", "url": "https://cs.kookmin.ac.kr/news/notice/"},
