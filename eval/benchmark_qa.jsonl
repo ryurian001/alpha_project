@@ -1,0 +1,5 @@
+{"id":"q001","question":"최근 장학공지 알려줘","relevant_categories":["장학공지"],"relevant_notice_ids":[],"answer_contains":["장학"],"notes":"category+recent filter smoke benchmark"}
+{"id":"q002","question":"2025년 장학금 관련 공지 찾아줘","relevant_categories":["장학공지"],"relevant_notice_ids":[],"answer_contains":["2025","장학"],"notes":"year+category filter benchmark"}
+{"id":"q003","question":"SW중심대학사업단 학생지원 프로그램 알려줘","relevant_categories":["학생지원"],"relevant_notice_ids":[],"answer_contains":["학생지원"],"notes":"explicit SW category benchmark"}
+{"id":"q004","question":"취업 관련 공지 뭐 있어?","relevant_categories":["취업공지"],"relevant_notice_ids":[],"answer_contains":["채용"],"notes":"employment category benchmark"}
+{"id":"q005","question":"소프트웨어융합대학 특강 공지 찾아줘","relevant_categories":["특강 및 행사"],"relevant_notice_ids":[],"answer_contains":["특강"],"notes":"event category benchmark"}

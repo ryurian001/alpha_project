@@ -33,6 +33,7 @@ ZERO_WIDTH_RE = re.compile(r"[\u200b\u200c\u200d\ufeff]")
 SPACE_RE = re.compile(r"[ \t\r\f\v]+")
 NEWLINE_RE = re.compile(r"\n{3,}")
 URL_RE = re.compile(r"https?://\S+")
+DATE_RE = re.compile(r"^(\d{2})\.(\d{1,2})\.(\d{1,2})$")
 SKIPPED_RESOURCE_PREFIXES = ("javascript:", "mailto:", "tel:", "data:", "#")
 
 
@@ -159,26 +160,41 @@ def stable_id(*parts: str) -> str:
     return hashlib.sha1(joined.encode("utf-8")).hexdigest()[:16]
 
 
+def normalize_notice_date(value: Any) -> str:
+    """Convert crawler date text like '26.01.19' into ISO date when possible."""
+    text = clean_text(value)
+    match = DATE_RE.match(text)
+    if not match:
+        return ""
+
+    year, month, day = match.groups()
+    return f"20{int(year):02d}-{int(month):02d}-{int(day):02d}"
+
+
 def clean_notice(item: dict[str, Any]) -> dict[str, Any] | None:
     title = clean_text(item.get("title"))
     content = clean_text(item.get("content"))
     url = clean_resource_text(item.get("url"))
+    date = clean_text(item.get("date"))
+    created_at = normalize_notice_date(date)
 
     if not title and not content:
         return None
 
-    notice_id = stable_id(url, title, clean_text(item.get("date")))
+    notice_id = stable_id(url, title, date)
     return {
         "id": notice_id,
         "source": clean_text(item.get("source")),
         "category": clean_text(item.get("category")),
         "title": title,
-        "date": clean_text(item.get("date")),
+        "date": date,
         "url": url,
         "content": content,
         "attachments": normalize_resource_list(item.get("attachments"), url),
         "attached_links": normalize_resource_list(item.get("attached_links"), url),
         "attached_images": normalize_resource_list(item.get("attached_images"), url),
+        "created_at": created_at,
+        "updated_at": created_at,
     }
 
 
@@ -276,6 +292,9 @@ def make_chunks(
                     "chunk_index": index,
                     "text": chunk,
                     "metadata": {
+                        "notice_id": notice["id"],
+                        "chunk_index": index,
+                        "chunk_id": f"{notice['id']}_{index:03d}",
                         "source": notice["source"],
                         "category": notice["category"],
                         "title": notice["title"],
@@ -284,6 +303,8 @@ def make_chunks(
                         "attachments": notice["attachments"],
                         "attached_links": notice["attached_links"],
                         "attached_images": notice["attached_images"],
+                        "created_at": notice["created_at"],
+                        "updated_at": notice["updated_at"],
                     },
                 }
             )

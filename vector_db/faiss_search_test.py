@@ -21,9 +21,18 @@ TEST_QUERIES = [
 
 
 def print_result_item(item: dict) -> None:
-    score_line = f"score={item['score']:.4f}" if item['score'] is not None else f"distance={item['distance']:.4f}"
+    score_line = (
+        f"hybrid={item['hybrid_score']:.4f} "
+        f"vector={item['vector_score']:.4f} "
+        f"bm25={item['bm25_score']:.4f}"
+    )
+    if item.get("rerank_score") is not None:
+        score_line += f" rerank={item['rerank_score']:.4f}"
     print(f"rank={item['rank']} | {score_line} | title={item['title']}")
-    print(f"  date={item['date']} | category={item['category']} | url={item['url']}")
+    print(
+        f"  date={item['date']} | category={item['category']} | "
+        f"notice_id={item['notice_id']} | chunk={item['chunk_index']} | url={item['url']}"
+    )
     snippet = item['chunk_text'].replace('\n', ' ')
     print(f"  chunk_text={shorten(snippet, width=250, placeholder='...')}")
     print()
