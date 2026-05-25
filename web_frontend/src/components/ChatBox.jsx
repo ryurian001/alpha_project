@@ -27,9 +27,32 @@ export default function ChatBox() {
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [deleteTargetSession, setDeleteTargetSession] = useState(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const messageRefs = useRef({});
   const messageListRef = useRef(null);
+
+  const checkScrollPosition = () => {
+    const container = messageListRef.current;
+    if (!container) return;
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+
+    setShowScrollToBottom(distanceFromBottom > 180);
+  };
+
+  const scrollToBottom = () => {
+    const container = messageListRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+
+    setShowScrollToBottom(false);
+  };
 
   const closeSidebar = () => {
     setEditingSessionId(null);
@@ -101,10 +124,13 @@ export default function ChatBox() {
       top: container.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages.length, isLoading]);
+
+    requestAnimationFrame(checkScrollPosition);
+  }, [messages.length, isLoading, currentSessionId]);
 
   return (
     <div className="app-shell">
+      <div className={`intro-gradient ${hasConversation ? "hide" : ""}`} />
       <div
         className={`floating-chat-title ${isSidebarOpen ? "hidden" : ""} ${
           currentSession ? "" : "title-empty"
@@ -248,7 +274,14 @@ export default function ChatBox() {
             activeReferenceMessageId={activeReferenceMessageId}
             messageRefs={messageRefs}
             onReferenceClick={handleReferenceClick}
+            onScroll={checkScrollPosition}
           />
+
+          {showScrollToBottom && (
+            <button className="scroll-to-bottom-button" onClick={scrollToBottom}>
+              <span>⬇</span>
+            </button>
+          )}
 
           <MessageInput onSend={sendMessage} isLoading={isLoading} />
         </section>

@@ -5,9 +5,10 @@ export default function MessageList({
   activeReferenceMessageId,
   messageRefs,
   onReferenceClick,
+  onScroll,
 }) {
   return (
-    <div className="message-list" ref={refContainer}>
+    <div className="message-list" ref={refContainer} onScroll={onScroll}>
       {messages.map((message) => (
         <article
           key={message.id}

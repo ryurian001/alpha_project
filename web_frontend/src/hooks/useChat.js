@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { sendChatMessage } from "../api/chatApi";
 
 const SESSIONS_STORAGE_KEY = "kmu_chatbot_sessions";
@@ -94,7 +94,8 @@ export function useChat() {
   const [activeReferenceMessageId, setActiveReferenceMessageId] = useState(null);
   const [activeReferences, setActiveReferences] = useState([]);
   const [isReferenceOpen, setIsReferenceOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingSessionId, setLoadingSessionId] = useState(null);
+  const referenceCloseTimerRef = useRef(null);
 
   const currentSession = useMemo(() => {
     if (!currentSessionId) return null;
@@ -103,6 +104,7 @@ export function useChat() {
 
   const messages = currentSession?.messages || [];
   const hasConversation = messages.length > 0;
+  const isCurrentSessionLoading = Boolean(currentSessionId) && loadingSessionId === currentSessionId;
 
   useEffect(() => {
     const nonEmptySessions = sessions.filter(
@@ -121,9 +123,14 @@ export function useChat() {
   }, [currentSessionId]);
 
   const resetReferenceState = () => {
+    if (referenceCloseTimerRef.current) {
+      clearTimeout(referenceCloseTimerRef.current);
+      referenceCloseTimerRef.current = null;
+    }
+
+    setIsReferenceOpen(false);
     setActiveReferenceMessageId(null);
     setActiveReferences([]);
-    setIsReferenceOpen(false);
   };
 
   const appendMessageToSession = (sessionId, message) => {
@@ -143,7 +150,11 @@ export function useChat() {
 
   const sendMessage = async (question) => {
     const trimmed = question.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed) return;
+
+    if (currentSessionId && loadingSessionId === currentSessionId) {
+      return;
+    }
 
     const userMessage = {
       id: createId(),
@@ -164,7 +175,7 @@ export function useChat() {
       appendMessageToSession(targetSessionId, userMessage);
     }
 
-    setIsLoading(true);
+    setLoadingSessionId(targetSessionId);
 
     try {
       const result = await sendChatMessage(trimmed);
@@ -190,7 +201,10 @@ export function useChat() {
 
       appendMessageToSession(targetSessionId, errorMessage);
     } finally {
-      setIsLoading(false);
+      setLoadingSessionId((prev) => {
+        if (prev === targetSessionId) return null;
+        return prev;
+      });
     }
   };
 
@@ -234,13 +248,28 @@ export function useChat() {
     const target = messages.find((message) => message.id === messageId);
     if (!target) return;
 
+    if (referenceCloseTimerRef.current) {
+      clearTimeout(referenceCloseTimerRef.current);
+      referenceCloseTimerRef.current = null;
+    }
+
     setActiveReferenceMessageId(messageId);
     setActiveReferences(target.references || []);
     setIsReferenceOpen(true);
   };
 
   const closeReferences = () => {
-    resetReferenceState();
+    setIsReferenceOpen(false);
+
+    if (referenceCloseTimerRef.current) {
+      clearTimeout(referenceCloseTimerRef.current);
+    }
+
+    referenceCloseTimerRef.current = setTimeout(() => {
+      setActiveReferenceMessageId(null);
+      setActiveReferences([]);
+      referenceCloseTimerRef.current = null;
+    }, 340);
   };
 
   return {
@@ -251,7 +280,7 @@ export function useChat() {
     activeReferenceMessageId,
     activeReferences,
     isReferenceOpen,
-    isLoading,
+    isLoading: isCurrentSessionLoading,
     hasConversation,
     sendMessage,
     startNewChat,
