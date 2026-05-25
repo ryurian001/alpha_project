@@ -206,7 +206,6 @@ export default function ChatBox() {
                       value={editingTitle}
                       autoFocus
                       onChange={(event) => setEditingTitle(event.target.value)}
-                      onBlur={cancelEdit}
                       onKeyDown={(event) => {
                         if (event.key === "Escape") {
                           cancelEdit();
