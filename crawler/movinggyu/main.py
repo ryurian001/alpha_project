@@ -5,6 +5,7 @@ import sys
 import time
 from cs_scraper import CsScraper
 from sw_scraper import SwScraper
+from kmu_scraper import KmuScraper
 from config import TARGET_BOARDS_CS, TARGET_BOARDS_SW
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -34,6 +35,7 @@ def main():
 
     cs_scraper = CsScraper()
     sw_scraper = SwScraper()
+    kmu_scraper = KmuScraper()
     
     new_count = 0
 
