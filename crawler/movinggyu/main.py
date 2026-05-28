@@ -6,7 +6,7 @@ import time
 from cs_scraper import CsScraper
 from sw_scraper import SwScraper
 from kmu_scraper import KmuScraper
-from config import TARGET_BOARDS_CS, TARGET_BOARDS_SW
+from config import TARGET_BOARDS_CS, TARGET_BOARDS_SW, TARGET_BOARDS_KMU
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -76,7 +76,25 @@ def main():
                 new_count += 1
                 print(f"   [NEW] {data['title'][:30]}...")
 
-    # 4. 최종 결과 저장 (기존 데이터 + 신규 데이터)
+    # 4. 국민대학교 본교 학사공지(KMU) 수집
+    print("\n🚀 [KMU] 국민대학교 본교 학사공지 수집 시작...")
+    for board in TARGET_BOARDS_KMU:
+        links = kmu_scraper.fetch_links(board['url'])
+        
+        for link in links:
+            # 🎯 중복 체크: 이미 있는 URL이면 무시
+            if link in existing_urls:
+                continue
+                
+            data = kmu_scraper.fetch_content(link, board['category'])
+            if data:
+                data['source'] = "KMU"  # 출처를 KMU로 지정
+                existing_data.append(data)
+                existing_urls.add(link)
+                new_count += 1
+                print(f"   [NEW] {data['title'][:30]}...")
+
+    # 5. 최종 결과 저장 (기존 데이터 + 신규 데이터)
     if new_count > 0:
         with open(output_filename, 'w', encoding='utf-8') as f:
             json.dump(existing_data, f, ensure_ascii=False, indent=4)

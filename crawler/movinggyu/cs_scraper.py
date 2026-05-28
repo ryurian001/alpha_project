@@ -30,10 +30,28 @@ class CsScraper:
         date_text = find_date_text(list_item, self.DATE_SELECTORS) if list_item else ""
         full_url = urljoin(board_url, href).split('?pn')[0]
 
+        # 🎯 <strong>공지</strong> 태그를 이용한 고정 공지 판단
+        is_notice = False
+        if list_item:
+            # 글 하나의 구역 내에 <strong> 태그가 존재하고, 그 텍스트가 '공지'인지 확인합니다.
+            strong_tag = list_item.select_one('strong')
+            if strong_tag and 'Notice' in strong_tag.text:
+                is_notice = True
+            
+            # 방어 코드: 부모 요소나 클래스명에 notice가 들어가 있는지도 함께 체크
+            classes_text = "".join(list_item.get('class', []))
+            if 'notice' in classes_text:
+                is_notice = True
+                
+            # 일반 글은 날짜가 무조건 존재하므로, 목록에서 날짜 텍스트를 못 찾았다면 고정공지로 간주
+            if not date_text:
+                is_notice = True
+
         return {
             "url": full_url,
             "date_text": date_text,
             "year": extract_year(date_text),
+            "is_notice": is_notice # 고정 공지 여부 반환
         }
 
     def fetch_links(self, board_url):
@@ -58,7 +76,7 @@ class CsScraper:
                     if not item:
                         continue
 
-                    if item["year"] and item["year"] < MIN_YEAR:
+                    if not item["is_notice"] and item["year"] and item["year"] < MIN_YEAR:
                         print(f"   🛑 {item['date_text']} 게시글이 발견되어 {MIN_YEAR}년 이전 탐색을 종료합니다.")
                         stop_by_year = True
                         break
@@ -176,71 +194,146 @@ class CsScraper:
             print(f"내용 추출 에러: {e}")
             return None
         
+# if __name__ == "__main__":
+#     # 1. 크롤러 준비
+#     sc = CsScraper()
+#     test_board_url = "https://cs.kookmin.ac.kr/news/jobs/"
+    
+#     print("🚀 [테스트 1단계] 게시판 링크 수집을 시작합니다...")
+#     temp_links = sc.fetch_links(test_board_url)
+    
+#     # 2. 결과 확인 및 상세 페이지 테스트
+#     if temp_links:
+#         for i in temp_links:
+#             print(i)
+#         print(f"\n✅ 성공적으로 {len(temp_links)}개의 링크를 수집했습니다.")
+        
+#         # 기본적으로 첫 번째 수집된 글로 테스트하지만,
+#         # 💡 만약 아까 발견하신 그 특정 글(tikorea-recruit.com 링크가 있던 글)을 
+#         # 바로 테스트하고 싶다면 아래 test_target 변수에 직접 그 주소를 넣으셔도 됩니다!
+#         test_target = temp_links[0] 
+#         test_target = "https://cs.kookmin.ac.kr/news/notice/2800"
+#         # test_target = "https://cs.kookmin.ac.kr/news/jobs/여기에_그_글_번호"
+        
+#         print(f"\n🚀 [테스트 2단계] 상세 페이지 추출 중... ({test_target})")
+        
+#         # 상세 페이지 수집 함수 실행
+#         content_data = sc.fetch_content(test_target, category="취업공지")
+        
+#         if content_data:
+#             print("\n🎉 상세 내용 추출 성공! 데이터 형태는 아래와 같습니다.")
+#             print("=" * 60)
+#             print(f"👉 [분류] {content_data['category']}")
+#             print(f"👉 [제목] {content_data['title']}")
+#             print(f"👉 [날짜] {content_data['date']}")
+#             print(f"👉 [본문 미리보기]\n{content_data['content'][:]}") 
+#             print("-" * 60)
+            
+#             # 🎯 새롭게 추가된 링크 추출 확인 부분
+#             print(f"🔗 [본문 속 하이퍼링크] - 총 {len(content_data['attached_links'])}개 발견")
+#             if content_data['attached_links']:
+#                 for i, link in enumerate(content_data['attached_links'], 1):
+#                     print(f"   {i}. {link}")
+#             else:
+#                 print("   (발견된 링크가 없습니다)")
+            
+#             print("-" * 60)
+            
+#             # 🎯 새롭게 추가된 링크 추출 확인 부분
+#             print(f"🔗 [본문 속 첨부파일] - 총 {len(content_data['attachments'])}개 발견")
+#             if content_data['attachments']:
+#                 for i, link in enumerate(content_data['attachments'], 1):
+#                     print(f"   {i}. {link}")
+#             else:
+#                 print("   (발견된 첨부파일이 없습니다)")
+            
+#             print("-" * 60)
+            
+#             # 🎯 새롭게 추가된 이미지 추출 확인 부분
+#             print(f"🖼️ [본문 속 이미지 주소] - 총 {len(content_data['attached_images'])}개 발견")
+#             if content_data['attached_images']:
+#                 for i, img in enumerate(content_data['attached_images'], 1):
+#                     print(f"   {i}. {img}")
+#             else:
+#                 print("   (발견된 이미지가 없습니다)")
+#             print("=" * 60)
+            
+#         else:
+#             print("\n❌ 상세 내용 추출에 실패했습니다.")
+#     else:
+#         print("\n❌ 수집된 링크가 없습니다.")
+
+
 if __name__ == "__main__":
-    # 1. 크롤러 준비
+    import pprint
+
+    # 1. 크롤러 및 테스트 환경 세팅
     sc = CsScraper()
+    
+    # 소프트웨어융합대학 취업공지 게시판 주소
     test_board_url = "https://cs.kookmin.ac.kr/news/jobs/"
     
-    print("🚀 [테스트 1단계] 게시판 링크 수집을 시작합니다...")
+    print("=" * 60)
+    print("🚀 [테스트 1단계] 게시판 목록 페이지에서 상세 링크 수집 시작")
+    print(f"👉 설정된 연도 필터 (MIN_YEAR): {MIN_YEAR}년")
+    print("=" * 60)
+    
+    # 2. fetch_links 실행 (상단 고정 공지는 통과하고, 일반 글 연도 필터링 작동 여부 확인)
     temp_links = sc.fetch_links(test_board_url)
     
-    # 2. 결과 확인 및 상세 페이지 테스트
     if temp_links:
-        for i in temp_links:
-            print(i)
-        print(f"\n✅ 성공적으로 {len(temp_links)}개의 링크를 수집했습니다.")
+        print(f"\n✅ 성공적으로 총 {len(temp_links)}개의 고유 링크를 추출했습니다.")
+        print("-" * 60)
+        for idx, link in enumerate(temp_links[:5], 1): # 너무 많을 수 있으니 상위 5개만 출력
+            print(f"   [{idx}] {link}")
+        if len(temp_links) > 5:
+            print(f"   ... 외 {len(temp_links) - 5}개 더 있음")
+        print("-" * 60)
         
-        # 기본적으로 첫 번째 수집된 글로 테스트하지만,
-        # 💡 만약 아까 발견하신 그 특정 글(tikorea-recruit.com 링크가 있던 글)을 
-        # 바로 테스트하고 싶다면 아래 test_target 변수에 직접 그 주소를 넣으셔도 됩니다!
-        test_target = temp_links[0] 
-        test_target = "https://cs.kookmin.ac.kr/news/notice/2800"
-        # test_target = "https://cs.kookmin.ac.kr/news/jobs/여기에_그_글_번호"
+        # 3. fetch_content 실행 (상세 내용 및 텍스트 개행 압축 테스트)
+        # 기본적으로 첫 번째 링크를 타겟으로 잡되, 특정 글 번호(예: 2800)로도 강제 지정 테스트 가능
+        test_target = temp_links[0]
+        # test_target = "https://cs.kookmin.ac.kr/news/notice/2800"
         
-        print(f"\n🚀 [테스트 2단계] 상세 페이지 추출 중... ({test_target})")
+        print(f"\n🚀 [테스트 2단계] 상세 페이지 데이터 및 텍스트 정제 추출 중...")
+        print(f"🔗 대상 주소: {test_target}")
+        print("=" * 60)
         
-        # 상세 페이지 수집 함수 실행
         content_data = sc.fetch_content(test_target, category="취업공지")
         
         if content_data:
-            print("\n🎉 상세 내용 추출 성공! 데이터 형태는 아래와 같습니다.")
+            print("\n🎉 상세 내용 추출 및 정제 성공!")
             print("=" * 60)
-            print(f"👉 [분류] {content_data['category']}")
-            print(f"👉 [제목] {content_data['title']}")
-            print(f"👉 [날짜] {content_data['date']}")
-            print(f"👉 [본문 미리보기]\n{content_data['content'][:]}") 
+            print(f"📋 [카테고리] : {content_data['category']}")
+            print(f"📌 [글 제 목] : {content_data['title']}")
+            print(f"📅 [작 성 일] : {content_data['date']}")
             print("-" * 60)
             
-            # 🎯 새롭게 추가된 링크 추출 확인 부분
-            print(f"🔗 [본문 속 하이퍼링크] - 총 {len(content_data['attached_links'])}개 발견")
-            if content_data['attached_links']:
-                for i, link in enumerate(content_data['attached_links'], 1):
-                    print(f"   {i}. {link}")
-            else:
-                print("   (발견된 링크가 없습니다)")
-            
+            # ⭐ 핵심 확인: 문자열이 유기적으로 하나로 이어져 있고 개행(\n)만 깔끔하게 살아있는지 출력
+            print("📝 [정제된 본문 내용 (단일 문자열 상태)]")
+            print("-" * 60)
+            print(content_data['content']) 
             print("-" * 60)
             
-            # 🎯 새롭게 추가된 링크 추출 확인 부분
-            print(f"🔗 [본문 속 첨부파일] - 총 {len(content_data['attachments'])}개 발견")
-            if content_data['attachments']:
-                for i, link in enumerate(content_data['attachments'], 1):
-                    print(f"   {i}. {link}")
-            else:
-                print("   (발견된 첨부파일이 없습니다)")
-            
-            print("-" * 60)
-            
-            # 🎯 새롭게 추가된 이미지 추출 확인 부분
-            print(f"🖼️ [본문 속 이미지 주소] - 총 {len(content_data['attached_images'])}개 발견")
-            if content_data['attached_images']:
-                for i, img in enumerate(content_data['attached_images'], 1):
-                    print(f"   {i}. {img}")
-            else:
-                print("   (발견된 이미지가 없습니다)")
+            # 본문 내 부가 정보 보따리 확인
+            print(f"📎 [첨부 파일 목록] : 총 {len(content_data['attachments'])}개 발견")
+            for file_url in content_data['attachments']:
+                print(f"   - {file_url}")
+                
+            print(f"🔗 [본문 내 하이퍼링크] : 총 {len(content_data['attached_links'])}개 발견")
+            for link_url in content_data['attached_links']:
+                print(f"   - {link_url}")
+                
+            print(f"🖼️ [본문 내 이미지 주소] : 총 {len(content_data['attached_images'])}개 발견")
+            for img_url in content_data['attached_images']:
+                print(f"   - {img_url}")
             print("=" * 60)
+            
+            # 💡 개발자용 디버깅 딕셔너리 원본 출력 형태 확인
+            # print("\n🔍 [파이썬 데이터 원본 딕셔너리 구조 확인]")
+            # pprint.pprint(content_data)
             
         else:
-            print("\n❌ 상세 내용 추출에 실패했습니다.")
+            print("\n❌ 상세 내용 정제 추출에 실패했습니다.")
     else:
-        print("\n❌ 수집된 링크가 없습니다.")
+        print("\n❌ 조건에 맞는 게시글 링크를 수집하지 못했습니다. (MIN_YEAR 설정 및 클래스 파싱을 확인하세요)")

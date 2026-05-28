@@ -36,7 +36,7 @@ class KmuScraper:
                         date_text = date_area.text.strip() # 예: "2026.05.22"
                         year = extract_year(date_text)
                         
-                        if year and year < MIN_YEAR:
+                        if year and year < MIN_YEAR and page > 1:
                             print(f"   🛑 {date_text} 게시글이 발견되어 {MIN_YEAR}년 이전 탐색을 종료합니다.")
                             stop_by_year = True
                             break

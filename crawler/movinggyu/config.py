@@ -1,7 +1,7 @@
 # config.py
 # 크롤링 관련 설정
-MAX_PAGES = 5
-MIN_YEAR = 2024
+MAX_PAGES = 2000
+MIN_YEAR = 2025
 
 TARGET_BOARDS_CS = [
     {"category": "학사공지", "url": "https://cs.kookmin.ac.kr/news/notice/"},
@@ -18,6 +18,6 @@ TARGET_BOARDS_SW = [
 ] # SW중심대학사업단 공지사항
 
 TARGET_BOARDS_KMU = [
-    {"category": "학사공지", "url": "https://www.kookmin.ac.kr/user/kmuNews/notice/4/index.do?notcLwprtCatgrCd="},
-    {"category": "장학공지", "url": "https://www.kookmin.ac.kr/user/kmuNews/notice/7/index.do?notcLwprtCatgrCd="}
+    {"category": "국민대 학사공지", "url": "https://www.kookmin.ac.kr/user/kmuNews/notice/4/index.do?notcLwprtCatgrCd="},
+    {"category": "국민대 장학공지", "url": "https://www.kookmin.ac.kr/user/kmuNews/notice/7/index.do?notcLwprtCatgrCd="}
 ] # 국민대학교 학사공지
