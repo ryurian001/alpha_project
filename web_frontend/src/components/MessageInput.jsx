@@ -23,7 +23,7 @@ export default function MessageInput({ onSend, isLoading }) {
       />
 
       <button type="submit" disabled={isLoading || !value.trim()}>
-        전송
+        ↵
       </button>
     </form>
   );

@@ -155,8 +155,8 @@ export default function ChatBox() {
       <aside className={`history-sidebar ${isSidebarOpen ? "open" : ""}`}>
         <div className="sidebar-title-row">
           <div className="sidebar-title-block">
-            <p>KMU Software</p>
-            <h2>국민대학교 소프트웨어융합대학 챗봇</h2>
+            <h2>소융돌이</h2>
+            <p>KMU Software Chatbot</p>
           </div>
 
           <button
@@ -258,11 +258,12 @@ export default function ChatBox() {
       <main className="chat-stage">
         <section className="chat-panel">
           <div className={`empty-intro ${hasConversation ? "fade-out" : ""}`}>
-            <p>국민대학교 소프트웨어융합대학 챗봇입니다.</p>
+            <p>국민대학교 소프트웨어융합대학 챗봇 소융돌이입니다.</p>
             <h1>무엇을 도와드릴까요?</h1>
             <span>
-              소프트웨어융합대학 공지사항을 기반으로 답변합니다. 중요한 내용은
-              반드시 원문 공지를 확인하세요.
+              소프트웨어융합대학 공지사항을 기반으로 답변합니다.
+              <br />
+              중요한 내용은 반드시 원문 공지를 확인하세요.
             </span>
           </div>
 

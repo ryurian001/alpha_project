@@ -24,7 +24,7 @@ export default function MessageList({
           }`}
         >
           <div className="message-meta">
-            <strong>{message.role === "user" ? "나" : "챗봇"}</strong>
+            <strong>{message.role === "user" ? "사용자" : "소융돌이"}</strong>
             <span>{message.time}</span>
           </div>
 
@@ -46,8 +46,8 @@ export default function MessageList({
       {isLoading && (
         <article className="message-row assistant-message">
           <div className="message-meta">
-            <strong>챗봇</strong>
-            <span>응답 생성 중</span>
+            <strong>소융돌이</strong>
+            <span>생각하는 중</span>
           </div>
 
           <div className="message-bubble loading-bubble">

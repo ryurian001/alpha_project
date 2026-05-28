@@ -8,8 +8,8 @@
   --primary-dark: #244fc2;
   --line: #dbe6f8;
   --danger: #e5484d;
-  --shadow: 0 24px 70px rgba(54, 88, 150, 0.16);
-  --soft-shadow: 0 1px 12px rgba(47, 99, 231, 0.05); /* 기본 메시지 상자 그림자 거리(y축) 3px 감소 */
+  /* --shadow: 0 24px 70px rgba(54, 88, 150, 0.16);
+  --soft-shadow: 0 1px 12px rgba(47, 99, 231, 0.05); 기본 메시지 상자 그림자 거리(y축) 3px 감소 */
   font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     sans-serif;
 }
@@ -335,20 +335,21 @@ button {
 
 .message-input-form {
   display: grid;
-  grid-template-columns: 1fr 96px;
+  grid-template-columns: 1fr 48px;
   gap: 12px;
-  padding: 12px;
-  margin-bottom: 22px;
+  padding: 4px 4px 4px 20px;
+  margin-bottom: 4%;
   background: #ffffff;
   border: 1px solid #dfe8f7;
-  border-radius: 16px;
+  border-radius: 999px;
   box-shadow: var(--soft-shadow);
+  align-items: center;
 }
 
 .message-input-form input {
   min-width: 0;
   height: 48px;
-  padding: 0 14px;
+  padding: 0;
   border: 0;
   outline: none;
   color: #22365f;
@@ -360,11 +361,17 @@ button {
 }
 
 .message-input-form button {
+  width: 40px;
+  height: 40px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 50%;
   background: var(--primary);
   color: #ffffff;
   font-weight: 900;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .message-input-form button:hover:not(:disabled) {
@@ -429,7 +436,7 @@ button {
 .sidebar-title-block p {
   margin: 0 0 7px;
   color: var(--primary);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -438,7 +445,7 @@ button {
 .sidebar-title-block h2 {
   margin: 0;
   color: var(--text-main);
-  font-size: 21px;
+  font-size: 24px;
   line-height: 1.35;
   letter-spacing: -0.05em;
 }

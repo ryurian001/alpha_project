@@ -36,28 +36,13 @@ function createId() {
   return crypto.randomUUID();
 }
 
-function getNextChatTitle(sessions) {
-  const usedNumbers = new Set();
-
-  sessions.forEach((session) => {
-    const match = /^새 대화 (\d+)$/.exec(session.title);
-    if (match) {
-      usedNumbers.add(Number(match[1]));
-    }
-  });
-
-  let next = 1;
-  while (usedNumbers.has(next)) {
-    next += 1;
-  }
-
-  return `새 대화 ${next}`;
-}
-
 function createSessionWithFirstMessage(sessions, firstMessage) {
+  const content = firstMessage.content;
+  const title = content.length > 10 ? content.slice(0, 10) + "..." : content;
+
   return {
     id: createId(),
-    title: getNextChatTitle(sessions),
+    title,
     messages: [firstMessage],
     createdAt: Date.now(),
     updatedAt: Date.now(),
